@@ -112,35 +112,36 @@ Solving the proposed objective function:
     
     
 
-    max_iter = 1000
-    obj = np.zeros(max_iter)
-    for iter_step in range(max_iter):
+    max_iter = 1000                            # maximum number of iterations
+    obj = np.zeros(max_iter)                   # initialize an array to store the objective function values for each iteration
+    for iter_step in range(max_iter):          # loop through each iteration
         # update W
-        T = np.linalg.inv(np.dot(X.transpose(), X) + beta * D + 1e-6*np.eye(n_features))
-        W = np.dot(np.dot(T, X.transpose()), F)
+        T = np.linalg.inv(np.dot(X.transpose(), X) + beta * D + 1e-6*np.eye(n_features))    # compute the inverse of a matrix
+        W = np.dot(np.dot(T, X.transpose()), F)                                             # compute a matrix product
         # update D
-        temp = np.sqrt((W*W).sum(1))
-        temp[temp < 1e-16] = 1e-16
-        temp = 0.5 / temp
-        D = np.diag(temp)
+        temp = np.sqrt((W*W).sum(1))                                                        # compute the square root of the sum of squares along each row
+        temp[temp < 1e-16] = 1e-16                                                          # set small values to a threshold
+        temp = 0.5 / temp                                                                   # compute an element-wise reciprocal and scale by a constant
+        D = np.diag(temp)                                                                   # create a diagonal matrix from a 1D array
         # update M
-        M = L1 + lambda_*L0 + alpha * (I - np.dot(np.dot(X, T), X.transpose()))
-        M = (M + M.transpose())/2
+        M = L1 + lambda_*L0 + alpha * (I - np.dot(np.dot(X, T), X.transpose()))             # compute a linear combination of matrices and the difference between two matrices
+        M = (M + M.transpose())/2                                                           # take the average of a matrix and its transpose
         # update F
-        denominator = np.dot(M, F) + gamma*np.dot(np.dot(F, F.transpose()), F)
-        temp = np.divide(gamma*F, denominator)
-        F = F*np.array(temp)
-        temp = np.diag(np.sqrt(np.diag(1 / (np.dot(F.transpose(), F) + 1e-16))))
-        F = np.dot(F, temp)
-
+        denominator = np.dot(M, F) + gamma*np.dot(np.dot(F, F.transpose()), F)              # compute a matrix product and a sum of matrix products
+        temp = np.divide(gamma*F, denominator)                                              # compute an element-wise quotient and scale by a constant
+        F = F*np.array(temp)                                                                # compute an element-wise product of two arrays
+        temp = np.diag(np.sqrt(np.diag(1 / (np.dot(F.transpose(), F) + 1e-16))))            # compute the diagonal matrix of the square root of the element-wise reciprocal of the sum of squares along each column
+        F = np.dot(F, temp)                                                                 # compute a matrix product
         # calculate the objective function
-        obj[iter_step] = np.trace(np.dot(np.dot(F.transpose(), M), F)) + gamma/4*np.linalg.norm(np.dot(F.transpose(), F)-np.identity(n_clusters), 'fro')
-        if verbose:
+        obj[iter_step] = np.trace(np.dot(np.dot(F.transpose(), M), F)) + gamma/4*np.linalg.norm(np.dot(F.transpose(), F)-np.identity(n_clusters), 'fro')  # compute a trace of a matrix product and the Frobenius norm of the difference between two matrices
+        if verbose:                                                                         # if verbose mode is on, print the objective function value for the current iteration
             print('obj at iter {0}: {1}'.format(iter_step+1, obj[iter_step]))
-
-        if iter_step >= 1 and math.fabs(obj[iter_step] - obj[iter_step-1]) < 1e-3:
+        # check for convergence
+        if iter_step >= 1 and math.fabs(obj[iter_step] - obj[iter_step-1]) < 1e-3:          # if the difference between the current and previous objective function values is smaller than a threshold, break out of the loop
             break
+    # return the final W matrix and the objective function values for each iteration
     return W, obj
+
 
 
 def kmeans_initialization(X, n_clusters):
@@ -159,18 +160,27 @@ def kmeans_initialization(X, n_clusters):
     Y: {numpy array}, shape (n_samples, n_clusters)
         pseudo label matrix
     """
-
+    # The function takes in two inputs, a numpy array X and an integer n_clusters, and returns a numpy array Y
     n_samples, n_features = X.shape
+    # The number of rows and columns in the input data array are extracted
     kmeans = sklearn.cluster.KMeans(n_clusters=n_clusters, init='k-means++', n_init=10, max_iter=300,
                                     tol=0.0001, precompute_distances=True, verbose=0,
                                     random_state=None, copy_x=True, n_jobs=1)
+    # A KMeans clustering object is created with the specified number of clusters and initialization parameters
     kmeans.fit(X)
+    # The KMeans object is fit to the input data array
     labels = kmeans.labels_
+    # The labels assigned to each data point by KMeans are extracted
     Y = np.zeros((n_samples, n_clusters))
+    # A numpy array of zeroes is created with dimensions (n_samples, n_clusters)
     for row in range(0, n_samples):
         Y[row, labels[row]] = 1
+    # A one-hot encoding is applied to the labels array, with each row containing a single 1
     T = np.dot(Y.transpose(), Y)
+    # The transpose of the one-hot encoded label array is multiplied with the original array
     F = np.dot(Y, np.sqrt(np.linalg.inv(T)))
+    # The square root of the inverse of the dot product is applied to the one-hot encoded label array
     F = F + 0.02*np.ones((n_samples, n_clusters))
+    # A constant value is added to the resulting array
     return F
-
+    # The resulting array is returned as the output of the function
